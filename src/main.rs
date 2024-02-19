@@ -17,17 +17,27 @@
 //
 //64KB of ram specifically
 //
+//Basic Architecture
+//
+//The 6502 microprocessor is a relatively simple 8 bit CPU with only a few
+//internal registers capable of addressing at most 64Kb of memory via its 16
+//bit address bus. The processor is little endian and expects addresses to be
+//stored in memory least significant byte first.
+//
+//The first 256 byte page of memory ($0000-$00FF) is referred to as 'Zero Page'
+//and is the focus of a number of special addressing modes that result in
+//shorter (and quicker) instructions or allow indirect access to the memory.
+//The second page of memory ($0100-$01FF) is reserved for the system stack and
+//which cannot be relocated.
+//The only other reserved locations in the memory map are the
+//very last 6 bytes of memory $FFFA to $FFFF which must be programmed
+//with the addresses of the non-maskable interrupt handler ($FFFA/B), the
+//power on reset location ($FFFC/D) and the BRK/interrupt request handler ($FFFE/F) respectively.
+//The 6502 does not have any special support of hardware devices
+//so they must be mapped to regions of memory in order to exchange data with the hardware latches.
+//
 //END PRELUDE
 
-//6502 has 3 primary 8-bit registers, A, X, and Y
-//A: accumulator
-//X: Register
-//Y: Register
-//and contains
-//stkp: stack pointer
-//pc: program counter
-//status: status register
-//
 //because of variable byte size of instruction, we need to know
 //size and duration of instruction (56 total legal instructions)
 //
@@ -41,49 +51,35 @@
 //4) execute
 //5) wait, count clocks, complete
 
-//Bus has devices, like CPU, and just for now, has RAM, 64KB
-//
-
-enum Flags_6502 {
-    C, //Carry Bit
-    Z, //Zero
-    I, //Disable Interrupts
-    D, //Decimal (unused in implementation followed)
-    B, //Break
-    U, //Unused
-    V, //Overflow
-    N, //Negative
+//6502 has 3 primary 8-bit registers, A, X, and Y
+//A: accumulator
+//X: Register
+//Y: Register
+//and contains
+//stkp: stack pointer
+//pc: program counter
+//status: status register
+struct CPU {
+    a: u8,      //accumulator
+    x: u8,      //x register
+    y: u8,      //y register
+    stkp: u8,   //stack pointer
+    pc: u16,    //program counter
+    status: u8, //status register
 }
 
-let status = 0x00u8; //status register
-let x = 0x00u8; //x register
-let y = 0x00u8; //register
-let a = 0x00u8; //accumulator
-let stkp = 0x00u8; //stack pointer
-let pc = 0x0000u16; //program counter
-
-impl Bus {
+impl RAM {
     fn read(&self, addr: u16, data: u8) -> u8 {
         if addr >= 0x0000 && addr <= 0xFFFF {
-            return self.ram.mem[addr as usize];
+            return self.mem[addr as usize];
         }
         0
     }
-    fn write(&mut self, data: u8, addr: u16, readOnly: bool) {
+    fn write(&mut self, data: u8, addr: u16, read_only: bool) {
         if addr >= 0x0000 && addr <= 0xFFFF {
-            self.ram.mem[addr as usize] = data;
+            self.mem[addr as usize] = data;
         }
     }
-}
-
-struct Bus {
-    cpu: CPU,
-    ram: RAM,
-}
-
-struct CPU {}
-
-impl RAM {
     fn new() -> RAM {
         RAM { mem: [0; 65536] }
     }
