@@ -1,4 +1,4 @@
-//note: did not write the contents of this file,
+//note: did not write the contents of most of the comments in this file,
 //using it as a reference while writing this up
 
 //Addressing Modes
@@ -155,9 +155,54 @@
 //LDA ($40),Y     ;Load a byte indirectly from memory
 //STA (DST),Y     ;Store accumulator indirectly into memory
 
+#[derive(Copy, Clone)]
 enum AddressingMode {
-    Immediate(u8),
+    Accumulator,      // 1    LSR A        work directly on accumulator
+    Implied,          // 1    BRK
+    Immediate,        // 2    LDA #10      8-bit constant in instruction
+    ZeroPage,         // 2    LDA $00      zero-page address
+    ZeroPageX,        // 2    LDA $80,X    address is X register + 8-bit constant
+    ZeroPageY,        // 2    LDX $10,Y    address is Y register + 8-bit constant
+    Relative,         // 2    BNE LABEL    branch target as signed relative offset
+    Absolute,         // 3    JMP $1000    full 16-bit address
+    AbsoluteX,        // 3    STA $1000,X  full 16-bit address plus X register
+    AbsoluteY,        // 3    STA $1000,Y  full 16-bit address plus Y register
+    Indirect,         // 3    JMP ($1000)  jump to address stored at address
+    IndexedIndirectX, // 2    LDA ($10,X)  load from address stored at (constant zero page address plus X register)
+    IndirectIndexedY, // 2    LDA ($10),Y  load from (address stored at constant zero page address) plus Y register
 }
+
+fn Accumulator(&mut cpu: &CPU) -> u8 {}
+
+fn Implied(&mut cpu: &CPU) -> u8 {
+    *cpu.fetched = *cpu.a;
+    return 0;
+}
+
+fn Immediate(&mut cpu: &CPU) -> u8 {
+    *cpu.addr_abs = *cpu.pc + 1;
+    return 0;
+}
+
+fn ZeroPage(&mut cpu: &CPU) -> u8 {}
+
+fn ZeroPageX(&mut cpu: &CPU) -> u8 {}
+
+fn ZeroPageY(&mut cpu: &CPU) -> u8 {}
+
+fn Relative(&mut cpu: &CPU) -> u8 {}
+
+fn Absolute(&mut cpu: &CPU) -> u8 {}
+
+fn AbsoluteX(&mut cpu: &CPU) -> u8 {}
+
+fn AbsoluteY(&mut cpu: &CPU) -> u8 {}
+
+fn Indirect(&mut cpu: &CPU) -> u8 {}
+
+fn IndexedIndirectX(&mut cpu: &CPU) -> u8 {}
+
+fn IndirectIndexedY(&mut cpu: &CPU) -> u8 {}
 
 // Opcodes ======================================================
 // There are 56 "legitimate" opcodes provided by the 6502 CPU. I
@@ -186,6 +231,7 @@ enum AddressingMode {
 // all listed below in groups for bookkeeping
 // info from below group taken from obelisk
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum Instruction {
     //Load and Store Instructions
     //These instructions transfer a single byte between memory and one of the
@@ -300,4 +346,223 @@ enum Instruction {
     BRK, //Force Interrupt, B
     NOP, //No Operation
     RTI, //Return from Interrupt, All
+}
+// This structure and the following vector are used to compile and store
+// the opcode translation table. The 6502 can effectively have 256
+// different instructions. Each of these are stored in a table in numerical
+// order so they can be looked up easily, with no decoding required.
+// Each table entry holds:
+// Pneumonic : A textual representation of the instruction (used for disassembly)
+// Opcode Function: A function pointer to the implementation of the opcode
+// Opcode Address Mode : A function pointer to the implementation of the
+// addressing mechanism used by the instruction
+//Cycle Count : An integer that represents the base number of clock cycles the
+//CPU requires to perform the instruction
+
+//struct INSTRUCTION
+//{
+//std::string name
+//uint8_t     (olc6502::*operate )(void) = nullptr;
+//uint8_t     (olc6502::*addrmode)(void) = nullptr;
+//uint8_t     cycles = 0;
+//};
+impl Opcode {
+    fn run(&self, data: Option<u8>) {}
+}
+
+struct Opcode {
+    name: &str,               //textual representation of instruction
+    op: Instruction,          //reference to opcode implementation
+    addrMode: AddressingMode, //reference to implementation of addressing mode
+    cycleCount: u8,           //(base) cycle count for cpu to do instruction
+}
+
+fn LDA(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn LDX(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn LDY(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn STA(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn STX(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn STY(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+
+fn TAX(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn TAY(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn TXA(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn TYA(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+
+fn TSX(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn TXS(&cpu: CPU) -> RetType {
+    unimplemented!();
+} //note to self: rename project 934TXS when posting online
+fn PHA(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn PHP(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn PLA(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn PLP(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+
+fn AND(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn EOR(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn ORA(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn BIT(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+
+fn ADC(&mut cpu: CPU) -> u8 {
+    //grab data going into accumulator
+
+    //Add done in 16 bit zone to account for the carry,
+    //ends up in bit 8 of the 16 bit word
+    //carry flag in high byte bit 0
+    //zero flag set if result is 0
+    //signed overflow set on above
+    //negative flag is MSB of result
+    //load 8-bit result into 8-bit accumulator
+    //potential to require extra clock cycle
+    1;
+}
+
+fn SBC(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn CMP(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn CPX(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn CPY(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+
+fn INC(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn INX(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn INY(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn DEC(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn DEX(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn DEY(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+
+fn ASL(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn LSR(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn ROL(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn ROR(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+
+fn JMP(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn JSR(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn RTS(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+
+fn BCC(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn BCS(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn BEQ(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn BMI(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn BNE(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn BPL(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn BVC(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn BVS(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+
+fn CLC(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn CLD(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn CLI(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn CLV(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn SEC(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn SED(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn SEI(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+
+fn BRK(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn NOP(&cpu: CPU) -> RetType {
+    unimplemented!();
+}
+fn RTI(&cpu: CPU) -> RetType {
+    unimplemented!();
 }

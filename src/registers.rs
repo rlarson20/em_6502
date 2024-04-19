@@ -107,16 +107,5 @@
 //The negative flag is set if the result of the last operation had bit 7 set to a one.
 //
 //END PRELUDE
-
-enum Flags {
-    C, //Carry Bit
-    Z, //Zero
-    I, //Disable Interrupts
-    D, //Decimal
-    B, //Break
-    U, //Unused
-    V, //Overflow
-    N, //Negative
-}
-
+//had flags and register stuff here but now just in main
 fn main() {}
