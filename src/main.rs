@@ -62,6 +62,8 @@
 
 //moving the flags declaration here since that's the only place it's used
 
+mod opcodes;
+
 use bitflags::bitflags;
 
 bitflags! {

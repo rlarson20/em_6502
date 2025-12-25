@@ -24,7 +24,7 @@
 //
 //LSR A           ;Logical shift right one bit
 //ROR A           ;Rotate right one bit
-//
+
 //Immediate
 //
 //Immediate addressing allows the programmer to directly specify an
@@ -35,7 +35,7 @@
 //LDA #10         ;Load 10 ($0A) into the accumulator
 //LDX #LO LABEL   ;Load the LSB of a 16 bit address into X
 //LDY #HI LABEL   ;Load the MSB of a 16 bit address into Y
-//
+
 //Zero Page
 //
 //An instruction using zero page addressing mode has only an
@@ -155,9 +155,12 @@
 //LDA ($40),Y     ;Load a byte indirectly from memory
 //STA (DST),Y     ;Store accumulator indirectly into memory
 
-#[derive(Copy, Clone)]
+use crate::CPU;
+
+struct RetType {}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 enum AddressingMode {
-    Accumulator,      // 1    LSR A        work directly on accumulator
     Implied,          // 1    BRK
     Immediate,        // 2    LDA #10      8-bit constant in instruction
     ZeroPage,         // 2    LDA $00      zero-page address
@@ -172,37 +175,164 @@ enum AddressingMode {
     IndirectIndexedY, // 2    LDA ($10),Y  load from (address stored at constant zero page address) plus Y register
 }
 
-fn Accumulator(&mut cpu: &CPU) -> u8 {}
-
-fn Implied(&mut cpu: &CPU) -> u8 {
-    *cpu.fetched = *cpu.a;
+fn Implied(cpu: &mut CPU) -> u8 {
+    cpu.fetched = cpu.a;
     return 0;
 }
 
-fn Immediate(&mut cpu: &CPU) -> u8 {
-    *cpu.addr_abs = *cpu.pc + 1;
+fn Immediate(cpu: &mut CPU) -> u8 {
+    cpu.addr_abs = cpu.pc + 1;
     return 0;
 }
 
-fn ZeroPage(&mut cpu: &CPU) -> u8 {}
+fn ZeroPage(cpu: &mut CPU) -> u8 {
+    cpu.addr_abs = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
+    cpu.addr_abs = cpu.addr_abs & 0x00FF;
+    return 0;
+}
 
-fn ZeroPageX(&mut cpu: &CPU) -> u8 {}
+fn ZeroPageX(cpu: &mut CPU) -> u8 {
+    cpu.addr_abs = (cpu.read(cpu.pc) + cpu.x) as u16;
+    cpu.pc += 1;
+    cpu.addr_abs = cpu.addr_abs & 0x00FF;
+    return 0;
+}
 
-fn ZeroPageY(&mut cpu: &CPU) -> u8 {}
+fn ZeroPageY(cpu: &mut CPU) -> u8 {
+    cpu.addr_abs = (cpu.read(cpu.pc) + cpu.y) as u16;
+    cpu.pc += 1;
+    cpu.addr_abs = cpu.addr_abs & 0x00FF;
+    return 0;
+}
 
-fn Relative(&mut cpu: &CPU) -> u8 {}
+fn Relative(cpu: &mut CPU) -> u8 {
+    cpu.addr_rel = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
+    if cpu.addr_rel & 0x80 {
+        cpu.addr_rel = cpu.addr_rel | 0xFF00;
+    }
+    return 0;
+}
 
-fn Absolute(&mut cpu: &CPU) -> u8 {}
+fn Absolute(cpu: &mut CPU) -> u8 {
+    let lo: u16 = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
+    let hi: u16 = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
 
-fn AbsoluteX(&mut cpu: &CPU) -> u8 {}
+    cpu.addr_abs = (hi << 8) | lo;
 
-fn AbsoluteY(&mut cpu: &CPU) -> u8 {}
+    return 0;
+}
 
-fn Indirect(&mut cpu: &CPU) -> u8 {}
+fn AbsoluteX(cpu: &mut CPU) -> u8 {
+    let lo: u16 = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
+    let hi: u16 = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
 
-fn IndexedIndirectX(&mut cpu: &CPU) -> u8 {}
+    cpu.addr_abs = (hi << 8) | lo;
+    cpu.addr_abs += cpu.x as u16;
+    if (cpu.addr_abs & 0xFF00) != (hi << 8) {
+        return 1;
+    }
+    return 0;
+}
 
-fn IndirectIndexedY(&mut cpu: &CPU) -> u8 {}
+fn AbsoluteY(cpu: &mut CPU) -> u8 {
+    let lo: u16 = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
+    let hi: u16 = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
+
+    cpu.addr_abs = (hi << 8) | lo;
+    cpu.addr_abs += cpu.y as u16;
+    if ((cpu.addr_abs & 0xFF00) != (hi << 8)) {
+        return 1;
+    }
+    return 0;
+}
+
+//since i'm going for accuracy i'm going to reproduce the bug in the indirect mode;
+//if the low byte is 0xFF, to read the high byte we need to cross a page.
+//This doesn't actually work on the chip, instead wrapping around to the same page,
+//ergo you get an invalid address.
+fn Indirect(cpu: &mut CPU) -> u8 {
+    let ptr_lo: u16 = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
+    let ptr_hi: u16 = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
+
+    let ptr: u16 = (ptr_hi << 8) | ptr_lo;
+
+    //simulate bug
+    if ptr_lo == 0x00FF {
+        cpu.addr_abs = ((cpu.read(ptr & 0xFF00) << 8) | cpu.read(ptr)) as u16;
+    } else {
+        cpu.addr_abs = ((cpu.read(ptr + 1) << 8) | cpu.read(ptr)) as u16;
+    }
+    return 0;
+}
+
+fn IndexedIndirectX(cpu: &mut CPU) -> u8 {
+    let t: u16 = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
+
+    let lo: u16 = cpu.read((t + cpu.x.into(u16)) & 0x00FF);
+    let hi: u16 = cpu.read((t + cpu.x.into(u16) + 1) & 0x00FF);
+
+    cpu.addr_abs = (hi << 8) | lo;
+
+    return 0;
+}
+
+fn IndirectIndexedY(cpu: &mut CPU) -> u8 {
+    let t: u16 = cpu.read(cpu.pc) as u16;
+    cpu.pc += 1;
+
+    let lo: u16 = cpu.read(t & 0x00FF) as u16;
+    let hi: u16 = cpu.read((t + 1) & 0x00FF) as u16;
+
+    cpu.addr_abs = (hi << 8) | lo;
+    cpu.addr_abs += cpu.y as u16;
+
+    if (cpu.addr_abs & 0xFF00) != (hi << 8) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+//struct INSTRUCTION
+//{
+//std::string name
+//uint8_t     (olc6502::*operate )(void) = nullptr;
+//uint8_t     (olc6502::*addrmode)(void) = nullptr;
+//uint8_t     cycles = 0;
+//};
+impl Opcode {
+    fn run(&self, data: Option<u8>) {}
+}
+
+struct Opcode {
+    name: &str,               //textual representation of instruction
+    op: Instruction,          //reference to opcode implementation
+    addrMode: AddressingMode, //reference to implementation of addressing mode
+    cycleCount: u8,           //(base) cycle count for cpu to do instruction
+    byte_repr: u8,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Operand {
+    Value(u8),
+    Address(u16),
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Instruct(Instruction, Option<Operand>);
+//TODO: read through archusr64's rust implementation, compared to olc's cpp
+//try and make sure i'm not just writing C in rust
 
 // Opcodes ======================================================
 // There are 56 "legitimate" opcodes provided by the 6502 CPU. I
@@ -230,7 +360,8 @@ fn IndirectIndexedY(&mut cpu: &CPU) -> u8 {}
 // has relatively basic instructions, many doing similar shit,
 // all listed below in groups for bookkeeping
 // info from below group taken from obelisk
-
+//huh
+//why does this fix this
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum Instruction {
     //Load and Store Instructions
@@ -359,22 +490,10 @@ enum Instruction {
 //Cycle Count : An integer that represents the base number of clock cycles the
 //CPU requires to perform the instruction
 
-//struct INSTRUCTION
-//{
-//std::string name
-//uint8_t     (olc6502::*operate )(void) = nullptr;
-//uint8_t     (olc6502::*addrmode)(void) = nullptr;
-//uint8_t     cycles = 0;
-//};
-impl Opcode {
-    fn run(&self, data: Option<u8>) {}
-}
-
-struct Opcode {
-    name: &str,               //textual representation of instruction
-    op: Instruction,          //reference to opcode implementation
-    addrMode: AddressingMode, //reference to implementation of addressing mode
-    cycleCount: u8,           //(base) cycle count for cpu to do instruction
+fn fetch(cpu: &mut CPU, addrMode: AddressingMode) {
+    if !(addrMode == AddressingMode::Implied) {
+        cpu.fetched = cpu.read(cpu.addr_abs);
+    }
 }
 
 fn LDA(&cpu: CPU) -> RetType {
@@ -428,8 +547,10 @@ fn PLP(&cpu: CPU) -> RetType {
     unimplemented!();
 }
 
-fn AND(&cpu: CPU) -> RetType {
-    unimplemented!();
+fn AND(&cpu: CPU) -> u8 {
+    //fetch
+    cpu.fetch();
+    cpu.a = cpu.a & cpu.fetched;
 }
 fn EOR(&cpu: CPU) -> RetType {
     unimplemented!();
@@ -443,8 +564,10 @@ fn BIT(&cpu: CPU) -> RetType {
 
 fn ADC(&mut cpu: CPU) -> u8 {
     //grab data going into accumulator
-
+    cpu.fetch();
     //Add done in 16 bit zone to account for the carry,
+    let temp: u16 = cpu.a.into() + cpu.fetched.into();
+    //
     //ends up in bit 8 of the 16 bit word
     //carry flag in high byte bit 0
     //zero flag set if result is 0
@@ -452,10 +575,10 @@ fn ADC(&mut cpu: CPU) -> u8 {
     //negative flag is MSB of result
     //load 8-bit result into 8-bit accumulator
     //potential to require extra clock cycle
-    1;
+    return 1;
 }
 
-fn SBC(&cpu: CPU) -> RetType {
+fn SBC(&cpu: CPU) -> u8 {
     unimplemented!();
 }
 fn CMP(&cpu: CPU) -> RetType {
@@ -566,3 +689,5 @@ fn NOP(&cpu: CPU) -> RetType {
 fn RTI(&cpu: CPU) -> RetType {
     unimplemented!();
 }
+
+fn main() {}
