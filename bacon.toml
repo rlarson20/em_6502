@@ -1,0 +1,31 @@
+# This is a standard bacon configuration file
+#
+# bacon is a background rust compiler: https://dystroy.org/bacon
+#
+# You can customize it to your needs.
+
+[jobs.check]
+command = ["cargo", "check", "--color", "always"]
+need_stdout = false
+
+[jobs.clippy]
+command = ["cargo", "clippy", "--color", "always", "--", "-D", "warnings"]
+need_stdout = false
+
+[jobs.test]
+command = ["cargo", "test", "--color", "always"]
+need_stdout = true
+
+[jobs.doc]
+command = ["cargo", "doc", "--color", "always", "--no-deps"]
+need_stdout = false
+
+[jobs.run]
+command = ["cargo", "run", "--color", "always"]
+need_stdout = true
+allow_warnings = true
+
+# specific job to run the integration tests (once implemented)
+[jobs.integration]
+command = ["cargo", "test", "--test", "integration_test", "--color", "always"]
+need_stdout = true
