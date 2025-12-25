@@ -248,7 +248,7 @@ fn AbsoluteY(cpu: &mut CPU) -> u8 {
 
     cpu.addr_abs = (hi << 8) | lo;
     cpu.addr_abs += cpu.y as u16;
-    if ((cpu.addr_abs & 0xFF00) != (hi << 8)) {
+    if (cpu.addr_abs & 0xFF00) != (hi << 8) {
         return 1;
     }
     return 0;
@@ -311,12 +311,12 @@ fn IndirectIndexedY(cpu: &mut CPU) -> u8 {
 //uint8_t     (olc6502::*addrmode)(void) = nullptr;
 //uint8_t     cycles = 0;
 //};
-impl Opcode {
-    fn run(&self, data: Option<u8>) {}
+impl Opcode<'_> {
+    fn run(&self, _data: Option<u8>) {}
 }
 
-struct Opcode {
-    name: &str,               //textual representation of instruction
+struct Opcode<'a> {
+    name: &'a str,            //textual representation of instruction
     op: Instruction,          //reference to opcode implementation
     addrMode: AddressingMode, //reference to implementation of addressing mode
     cycleCount: u8,           //(base) cycle count for cpu to do instruction
